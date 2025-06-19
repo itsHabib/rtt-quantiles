@@ -3,6 +3,20 @@ use aya::{programs::FEntry, Btf};
 #[rustfmt::skip]
 use log::{debug, warn};
 use tokio::signal;
+use std::net::Ipv4Addr;
+use aya::maps::{RingBuf};
+use anyhow::{anyhow};
+use std::ptr;
+
+
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct RttEvent {
+    pub srtt_us: u32,
+    pub src_addr: u32,
+    pub dst_addr: u32,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -36,10 +50,32 @@ async fn main() -> anyhow::Result<()> {
     program.load("tcp_rcv_established", &btf)?;
     program.attach()?;
 
+    let events_map = ebpf.map_mut("EVENTS")
+        .ok_or(anyhow!("EVENTS map not found"))?;
+    let mut ringbuf = RingBuf::try_from(events_map)?;
+
+        loop {
+            if let Some(data) = ringbuf.next() {
+                let event = unsafe { ptr::read(data.as_ptr() as *const RttEvent) };
+
+                println!(
+                    "RTT={}µs src={} dst={}",
+                    event.srtt_us, 
+                    u32_to_ip(event.src_addr),
+                    u32_to_ip(event.dst_addr),
+                );
+            } else {
+            }
+        }
+
     let ctrl_c = signal::ctrl_c();
     println!("Waiting for Ctrl-C...");
     ctrl_c.await?;
     println!("Exiting...");
 
     Ok(())
+}
+
+fn u32_to_ip(ip: u32) -> String {
+    Ipv4Addr::from(ip).to_string()
 }
