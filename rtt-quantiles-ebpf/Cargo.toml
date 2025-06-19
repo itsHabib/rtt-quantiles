@@ -1,0 +1,17 @@
+[package]
+name = "rtt-quantiles-ebpf"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rtt-quantiles-common = { path = "../rtt-quantiles-common" }
+
+aya-ebpf = { workspace = true }
+aya-log-ebpf = { workspace = true }
+
+[build-dependencies]
+which = { workspace = true }
+
+[[bin]]
+name = "rtt-quantiles"
+path = "src/main.rs"
