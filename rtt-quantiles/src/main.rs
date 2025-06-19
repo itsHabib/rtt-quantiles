@@ -7,8 +7,43 @@ use std::net::Ipv4Addr;
 use aya::maps::{RingBuf};
 use anyhow::{anyhow};
 use std::ptr;
+use std::collections::VecDeque;
+use std::time::{Duration, Instant};
 
 
+struct RttCollector {
+    measurements: VecDeque<(u32, Instant)>,
+    window_duration: Duration,
+}
+
+impl RttCollector {
+    fn new(window_seconds: u64) -> Self {
+        Self{
+            measurements: VecDeque::new(),
+            window_duration: Duration::from_secs(window_seconds),
+        }
+    }
+    fn add_rtt(&mut self, rtt_us: u32){
+        let now = Instant::now();
+        self.measurements.push_back((rtt_us, now));
+
+        while let Some((_, ts))  = self.measurements.front() {
+            if ts.duration_since(now) <= self.window_duration {
+                break
+            }
+
+            self.measurements.pop_front();
+        }
+    }
+
+    fn calculate_quantile(self) -> Option<(u32, u32)> {
+        Some((0, 0))
+    }
+
+    fn count(&self) -> usize {
+        return self.measurements.len();
+    }
+}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -53,17 +88,25 @@ async fn main() -> anyhow::Result<()> {
     let events_map = ebpf.map_mut("EVENTS")
         .ok_or(anyhow!("EVENTS map not found"))?;
     let mut ringbuf = RingBuf::try_from(events_map)?;
+    let mut count = 0u64;
+    let start = Instant::now();
 
         loop {
             if let Some(data) = ringbuf.next() {
                 let event = unsafe { ptr::read(data.as_ptr() as *const RttEvent) };
+                count += 1;
 
-                println!(
-                    "RTT={}µs src={} dst={}",
-                    event.srtt_us, 
-                    u32_to_ip(event.src_addr),
-                    u32_to_ip(event.dst_addr),
-                );
+                if count % 100 == 0 {
+                    let elapsed = start.elapsed().as_secs_f64();
+                    let rate = count as f64 / elapsed;
+                    println!("📊 {} events in {:.1}s = {:.1} events/sec", count, elapsed, rate);
+                    println!(
+                        "RTT={}µs src={} dst={}",
+                        event.srtt_us,
+                        u32_to_ip(event.src_addr),
+                        u32_to_ip(event.dst_addr),
+                    );
+                }
             } else {
             }
         }
