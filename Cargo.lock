@@ -510,6 +510,7 @@ dependencies = [
  "log",
  "rtt-quantiles-common",
  "rtt-quantiles-ebpf",
+ "rtt-tdigest",
  "tdigest",
  "tokio",
 ]
@@ -529,6 +530,13 @@ dependencies = [
  "aya-log-ebpf",
  "rtt-quantiles-common",
  "which",
+]
+
+[[package]]
+name = "rtt-tdigest"
+version = "0.1.0"
+dependencies = [
+ "tdigest",
 ]
 
 [[package]]

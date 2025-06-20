@@ -2,40 +2,18 @@
 #![no_main]
 
 use aya_ebpf::{
-    macros::{fentry, map},
-    programs::FEntryContext,
     helpers::bpf_probe_read_kernel,
-    cty::{c_void, c_uint},
-    bindings::{tcp_sock},
-    maps::{RingBuf},
+    macros::{fentry, map},
+    maps::RingBuf,
+    programs::FEntryContext,
 };
 
 use aya_log_ebpf::info;
 
+use rtt_quantiles_ebpf::vmlinux::{sock, tcp_sock};
+
 #[map(name = "EVENTS")]
 static mut EVENTS: RingBuf = RingBuf::with_byte_size(65536, 0);
-
-
-
-
-#[repr(C)]
-pub struct sockCommon {
-    pub skc_daddr: u32,
-    pub skc_rcv_saddr: u32,
-    // You can add more fields if needed (order must match kernel)
-}
-
-#[repr(C)]
-pub struct sock {
-    pub __sk_common: sockCommon,
-    // Padding to match layout, if necessary
-}
-
-#[repr(C)]
-pub struct TcpSock {
-    pub srtt_us: u32,
-    // ...
-}
 
 #[repr(C)]
 pub struct RttEvent {
@@ -46,20 +24,18 @@ pub struct RttEvent {
 
 #[fentry(function = "tcp_rcv_established")]
 pub fn rtt_quantiles(ctx: FEntryContext) -> u32 {
-    match try_rtt_quantiles(ctx) {
-        Ok(ret) => ret,
-        Err(ret) => ret,
-    }
-}
+    let (srtt_us, src_addr, dst_addr) = unsafe {
+        let sk = ctx.arg::<*const sock>(0);
+        let ts = sk as *const tcp_sock;
 
-fn try_rtt_quantiles(ctx: FEntryContext) -> Result<u32, u32> {
-    // Get the socket pointer (first argument) - this needs unsafe
-    let sk = unsafe { ctx.arg::<*const sock>(0) };
-    let ts = sk as *const TcpSock;
+        let srtt_us = bpf_probe_read_kernel(&(*ts).srtt_us).unwrap_or(0) >> 3;
 
-    let src_addr = unsafe { (*sk).__sk_common.skc_rcv_saddr };
-    let dst_addr = unsafe { (*sk).__sk_common.skc_daddr };
-    let srtt_us = unsafe { (*ts).srtt_us  } >> 3;
+        let inner = &(*sk).__sk_common.__bindgen_anon_1.__bindgen_anon_1;
+        let src_addr = u32::from_be(inner.skc_rcv_saddr);
+        let dst_addr = u32::from_be(inner.skc_daddr);
+
+        (srtt_us, src_addr, dst_addr)
+    };
 
     let event = RttEvent {
         srtt_us,
@@ -67,15 +43,21 @@ fn try_rtt_quantiles(ctx: FEntryContext) -> Result<u32, u32> {
         dst_addr,
     };
 
-    // Write to the ring buffer
     unsafe {
-        let _ = unsafe { EVENTS.output(&event, 0) };
+        let _ = EVENTS.output(&event, 0);
+        if let Some(mut slot) = EVENTS.reserve((size_of::<RttEvent>() as u64)) {
+            core::ptr::write(
+                slot.as_mut_ptr() as *mut RttEvent,
+                RttEvent {
+                    srtt_us,
+                    src_addr,
+                    dst_addr,
+                },
+            );
+            slot.submit(0);
+        }
     }
-
-
-   // info!(&ctx, "RTT: {}µs src={} dst={}", srtt_us, src_addr, dst_addr);
-
-    Ok(0)
+    0
 }
 
 #[cfg(not(test))]

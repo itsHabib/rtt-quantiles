@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 rtt-quantiles-common = { path = "../rtt-quantiles-common", features = ["user"] }
+rtt-tdigest = { path = "../rtt-tdigest" }
 
 anyhow = { workspace = true, default-features = true }
 aya = { workspace = true }

@@ -4,6 +4,7 @@ members = [
     "rtt-quantiles",
     "rtt-quantiles-common",
     "rtt-quantiles-ebpf",
+    "rtt-tdigest",
 ]
 default-members = ["rtt-quantiles", "rtt-quantiles-common"]
 
