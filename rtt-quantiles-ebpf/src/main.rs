@@ -7,9 +7,7 @@ use aya_ebpf::{
     maps::RingBuf,
     programs::FEntryContext,
 };
-
 use aya_log_ebpf::info;
-
 use rtt_quantiles_ebpf::vmlinux::{sock, tcp_sock};
 
 #[map(name = "EVENTS")]

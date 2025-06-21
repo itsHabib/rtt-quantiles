@@ -2,13 +2,16 @@ use anyhow::Context as _;
 use aya::{programs::FEntry, Btf};
 #[rustfmt::skip]
 use log::{debug, warn};
+use std::{
+    collections::VecDeque,
+    net::Ipv4Addr,
+    ptr,
+    time::{Duration, Instant},
+};
+
 use anyhow::anyhow;
 use aya::maps::RingBuf;
 use rtt_tdigest::RttSummary;
-use std::collections::VecDeque;
-use std::net::Ipv4Addr;
-use std::ptr;
-use std::time::{Duration, Instant};
 use tokio::signal;
 
 #[repr(C)]
@@ -59,36 +62,38 @@ async fn main() -> anyhow::Result<()> {
     let mut rtt_summary = RttSummary::new();
 
     loop {
-        if let Some(data) = ringbuf.next() {
-            let event = unsafe { ptr::read(data.as_ptr() as *const RttEvent) };
-            rtt_summary.add_rtt(event.srtt_us);
-
-            if rtt_summary.count() % 100 == 0 {
-                let elapsed = start.elapsed().as_secs_f64();
-                let rate = rtt_summary.count() as f64 / elapsed;
-                println!(
-                    "📊 {} samples in {:.1}s = {:.1} events/sec",
-                    rtt_summary.count(),
-                    elapsed,
-                    rate
-                );
-                println!(
-                    "RTT={}µs src={} dst={}, p99:{:.1}ms, p90:{:.1}ms",
-                    event.srtt_us,
-                    u32_to_ip(event.src_addr),
-                    u32_to_ip(event.dst_addr),
-                    rtt_summary.p99(),
-                    rtt_summary.p90(),
-                );
+        tokio::select! {
+            _ = signal::ctrl_c() => {
+                println!("Exiting...");
+                break;
             }
-        } else {
+            _ = tokio::task::yield_now() => {
+                if let Some(data) = ringbuf.next() {
+                    let event = unsafe { ptr::read(data.as_ptr() as *const RttEvent) };
+                    rtt_summary.add_rtt(event.srtt_us);
+
+                    if rtt_summary.count() % 100 == 0 {
+                        let elapsed = start.elapsed().as_secs_f64();
+                        let rate = rtt_summary.count() as f64 / elapsed;
+                        println!(
+                            "📊 {} samples in {:.1}s = {:.1} events/sec",
+                            rtt_summary.count(),
+                            elapsed,
+                            rate
+                        );
+                        println!(
+                            "RTT={}µs src={} dst={}, p99:{:.1}ms, p90:{:.1}ms",
+                            event.srtt_us,
+                            u32_to_ip(event.src_addr),
+                            u32_to_ip(event.dst_addr),
+                            rtt_summary.p99(),
+                            rtt_summary.p90(),
+                        );
+                    }
+                }
+            }
         }
     }
-
-    let ctrl_c = signal::ctrl_c();
-    println!("Waiting for Ctrl-C...");
-    ctrl_c.await?;
-    println!("Exiting...");
 
     Ok(())
 }
