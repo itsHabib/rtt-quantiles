@@ -13,6 +13,9 @@ use anyhow::anyhow;
 use aya::maps::RingBuf;
 use rtt_tdigest::RttSummary;
 use tokio::signal;
+use aws_config::meta::region::RegionProviderChain;
+use aws_config;
+use aws_sdk_dynamodb::{Client, Error};
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -53,6 +56,10 @@ async fn main() -> anyhow::Result<()> {
     let program: &mut FEntry = ebpf.program_mut("rtt_quantiles").unwrap().try_into()?;
     program.load("tcp_rcv_established", &btf)?;
     program.attach()?;
+
+    let region_provider = RegionProviderChain::default_provider().or_else("us-east-1");
+    let config = aws_config::from_env().region(region_provider).load().await;
+    let client =  Client::new(&config);
 
     let events_map = ebpf
         .map_mut("EVENTS")

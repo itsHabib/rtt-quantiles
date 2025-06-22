@@ -6,16 +6,16 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-rtt-quantiles-common = { path = "../rtt-quantiles-common", features = ["user"] }
 rtt-tdigest = { path = "../rtt-tdigest" }
 
 anyhow = { workspace = true, default-features = true }
+aws-config = { workspace = true }
+aws-sdk-dynamodb = { workspace = true }
 aya = { workspace = true }
 aya-log = { workspace = true }
 env_logger = { workspace = true }
 libc = { workspace = true }
 log = { workspace = true }
-tdigest = "0.2.3"
 tokio = { workspace = true, features = [
     "macros",
     "rt",

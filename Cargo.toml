@@ -2,22 +2,26 @@
 resolver = "2"
 members = [
     "rtt-quantiles",
-    "rtt-quantiles-common",
     "rtt-quantiles-ebpf",
     "rtt-tdigest",
 ]
-default-members = ["rtt-quantiles", "rtt-quantiles-common"]
+default-members = ["rtt-quantiles"]
 
 [workspace.package]
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
+aws-sdk-dynamodb = "1.80.0"
+aws-config = { version = "1.8.0", features = ["behavior-version-latest"] }
 aya = { version = "0.13.1", default-features = false }
 aya-build = { version = "0.1.2", default-features = false }
 aya-ebpf = { version = "0.1.1", default-features = false }
 aya-log = { version = "0.2.1", default-features = false }
 aya-log-ebpf = { version = "0.1.1", default-features = false }
-
+bincode = "2.0.1"
+chrono = { version = "0.4.41", features = ["serde"] }
+serde_json = "1.0.140"
+tdigest = { version = "0.2.3", features = ["use_serde"] }
 anyhow = { version = "1", default-features = false }
 # `std` feature is currently required to build `clap`.
 #
