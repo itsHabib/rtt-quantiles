@@ -7,7 +7,6 @@ license.workspace = true
 [dependencies]
 aws-sdk-dynamodb = { workspace = true }
 chrono = { workspace = true }
-bincode = { workspace = true }
 tdigest = { workspace = true }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = { workspace = true }

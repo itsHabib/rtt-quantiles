@@ -1,9 +1,9 @@
 use crate::record::TDigestRecord;
 use anyhow::Result;
+use aws_sdk_dynamodb::Client;
 use aws_sdk_dynamodb::types::AttributeValue;
-use aws_sdk_dynamodb::{Client, Error};
-use bincode;
 use chrono;
+use chrono::{Duration, DurationRound};
 use serde_json;
 use std::collections::HashMap;
 use tdigest::TDigest;
@@ -22,25 +22,39 @@ impl Service {
     }
 
     pub async fn store_tdigest(&self, agg_level: String, tdigest: TDigest) -> Result<()> {
+        let now = chrono::Utc::now();
+        let created_at = now
+            .duration_trunc(Duration::minutes(1))
+            .unwrap_or_else(|_| now);
+
         let record = TDigestRecord {
             key: self.record_key(agg_level.clone()),
             app: self.app.clone(),
             agg_level,
-            created_at: chrono::Utc::now(),
+            created_at,
             node_id: self.node.clone(),
             tdigest,
         };
 
         let dynanmo_hashmap = record_to_item(&record)?;
 
-        self.client
+        match self
+            .client
             .put_item()
             .table_name(TABLE_NAME)
             .set_item(Some(dynanmo_hashmap))
             .send()
-            .await?;
-
-        Ok(())
+            .await
+        {
+            Ok(_) => {
+                println!("Successfully stored digest for {}/{}", self.app, self.node);
+                Ok(())
+            }
+            Err(e) => {
+                eprintln!("Failed to store digest: {}", e);
+                Err(anyhow::anyhow!("DynamoDB storage failed: {}", e))
+            }
+        }
     }
 
     fn record_key(&self, agg_level: String) -> String {

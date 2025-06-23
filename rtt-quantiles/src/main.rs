@@ -10,13 +10,13 @@ use std::{
 };
 
 use anyhow::anyhow;
+use aws_config;
+use aws_config::meta::region::RegionProviderChain;
+use aws_sdk_dynamodb::Client;
 use aya::maps::RingBuf;
 use rtt_tdigest::{Service, Summary};
-use tokio::{signal, time};
-use aws_config::meta::region::RegionProviderChain;
-use aws_config;
-use aws_sdk_dynamodb::{Client, Error};
 use std::sync::{Arc, Mutex};
+use tokio::{signal, time};
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -60,42 +60,40 @@ async fn main() -> anyhow::Result<()> {
 
     let region_provider = RegionProviderChain::default_provider().or_else("us-east-1");
     let config = aws_config::from_env().region(region_provider).load().await;
-    let client =  Client::new(&config);
-    let svc = Service::new(
-        client,
-        "sample-app".to_string(),
-        "local".to_string(),
-    );
+    let client = Client::new(&config);
+    let svc = Service::new(client, "sample-app".to_string(), "local".to_string());
 
     let events_map = ebpf
         .map_mut("EVENTS")
         .ok_or(anyhow!("EVENTS map not found"))?;
     let mut ringbuf = RingBuf::try_from(events_map)?;
     let start = Instant::now();
-    let mut summary_mutex = Arc::new(Mutex::new(Summary::new()));
+    let summary_mutex = Arc::new(Mutex::new(Summary::new()));
 
+    tokio::spawn({
+        let initial_tick = time::Instant::now() + Duration::from_secs(60);
+        let mut store_interval = time::interval_at(initial_tick, Duration::from_secs(60));
+        let summary_mutex = Arc::clone(&summary_mutex);
 
-    tokio::spawn(async move {
-        let mut store_interval = time::interval(Duration::from_secs(60));
-        let mut summary_mutex = Arc::clone(&summary_mutex);
+        async move {
+            loop {
+                store_interval.tick().await;
+                println!("Attempting to store T Digest");
+                let digest = match summary_mutex.lock() {
+                    Ok(summary) => summary.digest(),
+                    Err(e) => {
+                        warn!("Failed to lock summary mutex: {}", e);
+                        continue;
+                    }
+                };
 
-        loop {
-            store_interval.tick().await;
-            let digest = match summary_mutex.lock() {
-                Ok(summary) => summary.digest(),
-                Err(e) => {
-                    warn!("Failed to lock summary mutex: {}", e);
-                    continue;
+                match svc.store_tdigest("1m".to_string(), digest).await {
+                    Ok(_) => println!("Stored 1m T-Digest successfully"),
+                    Err(e) => warn!("Failed to store t digest: {}", e),
                 }
-            };
-
-            match svc.store_tdigest("1m".to_string(), digest).await {
-                Ok(_) => println!("Stored 1m T-Digest successfully"),
-                Err(e) => warn!("Failed to store p99 digest: {}", e),
             }
         }
     });
-
 
     loop {
         tokio::select! {
@@ -116,7 +114,7 @@ async fn main() -> anyhow::Result<()> {
 
                     rtt_summary.add_rtt(event.srtt_us);
 
-                    if rtt_summary.count() % 100 == 0 {
+                    if rtt_summary.count() % 1000 == 0 {
                         let elapsed = start.elapsed().as_secs_f64();
                         let rate = rtt_summary.count() as f64 / elapsed;
                         println!(
