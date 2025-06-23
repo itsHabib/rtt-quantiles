@@ -2,15 +2,15 @@ use tdigest::TDigest;
 
 type RttMicros = u32;
 
-pub struct RttSummary {
+pub struct Summary {
     digest: TDigest,
     count: u64,
 }
 
-impl RttSummary {
+impl Summary {
     /// Return a RttSummary with 100 centroids
     pub fn new() -> Self {
-        RttSummary {
+        Summary {
             digest: TDigest::new_with_size(100),
             count: 0,
         }
@@ -22,6 +22,11 @@ impl RttSummary {
         self.digest = self.digest.merge_unsorted(vec![rtt_ms]);
         self.count += 1;
     }
+    
+    pub fn digest(&self) -> TDigest {
+        self.digest.clone()
+    }
+    
 
     /// Returns the p99 quantile of the given rtt samples
     pub fn p99(&self) -> f64 {
@@ -59,7 +64,7 @@ impl RttSummary {
     }
 }
 
-impl Default for RttSummary {
+impl Default for Summary {
     fn default() -> Self {
         Self::new()
     }

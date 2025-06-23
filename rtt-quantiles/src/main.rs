@@ -11,11 +11,12 @@ use std::{
 
 use anyhow::anyhow;
 use aya::maps::RingBuf;
-use rtt_tdigest::RttSummary;
-use tokio::signal;
+use rtt_tdigest::{Service, Summary};
+use tokio::{signal, time};
 use aws_config::meta::region::RegionProviderChain;
 use aws_config;
 use aws_sdk_dynamodb::{Client, Error};
+use std::sync::{Arc, Mutex};
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -60,13 +61,41 @@ async fn main() -> anyhow::Result<()> {
     let region_provider = RegionProviderChain::default_provider().or_else("us-east-1");
     let config = aws_config::from_env().region(region_provider).load().await;
     let client =  Client::new(&config);
+    let svc = Service::new(
+        client,
+        "sample-app".to_string(),
+        "local".to_string(),
+    );
 
     let events_map = ebpf
         .map_mut("EVENTS")
         .ok_or(anyhow!("EVENTS map not found"))?;
     let mut ringbuf = RingBuf::try_from(events_map)?;
     let start = Instant::now();
-    let mut rtt_summary = RttSummary::new();
+    let mut summary_mutex = Arc::new(Mutex::new(Summary::new()));
+
+
+    tokio::spawn(async move {
+        let mut store_interval = time::interval(Duration::from_secs(60));
+        let mut summary_mutex = Arc::clone(&summary_mutex);
+
+        loop {
+            store_interval.tick().await;
+            let digest = match summary_mutex.lock() {
+                Ok(summary) => summary.digest(),
+                Err(e) => {
+                    warn!("Failed to lock summary mutex: {}", e);
+                    continue;
+                }
+            };
+
+            match svc.store_tdigest("1m".to_string(), digest).await {
+                Ok(_) => println!("Stored 1m T-Digest successfully"),
+                Err(e) => warn!("Failed to store p99 digest: {}", e),
+            }
+        }
+    });
+
 
     loop {
         tokio::select! {
@@ -77,6 +106,14 @@ async fn main() -> anyhow::Result<()> {
             _ = tokio::task::yield_now() => {
                 if let Some(data) = ringbuf.next() {
                     let event = unsafe { ptr::read(data.as_ptr() as *const RttEvent) };
+                    let mut rtt_summary = match summary_mutex.lock() {
+                        Ok(summary) => summary,
+                        Err(e) => {
+                            warn!("Failed to lock summary mutex: {}", e);
+                            continue;
+                        }
+                    };
+
                     rtt_summary.add_rtt(event.srtt_us);
 
                     if rtt_summary.count() % 100 == 0 {

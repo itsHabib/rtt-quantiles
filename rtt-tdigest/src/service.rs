@@ -17,11 +17,11 @@ pub struct Service {
 }
 
 impl Service {
-    fn new(client: Client, app: String, node: String) -> Self {
+    pub fn new(client: Client, app: String, node: String) -> Self {
         Self { client, app, node }
     }
 
-    async fn store_tdigest(&self, agg_level: String, tdigest: TDigest) -> Result<()> {
+    pub async fn store_tdigest(&self, agg_level: String, tdigest: TDigest) -> Result<()> {
         let record = TDigestRecord {
             key: self.record_key(agg_level.clone()),
             app: self.app.clone(),
