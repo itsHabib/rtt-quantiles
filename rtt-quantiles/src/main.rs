@@ -72,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
 
     tokio::spawn({
         let initial_tick = time::Instant::now() + Duration::from_secs(60);
-        let mut store_interval = time::interval_at(initial_tick, Duration::from_secs(60));
+        let mut store_interval = time::interval_at(initial_tick, Duration::from_secs(61));
         let summary_mutex = Arc::clone(&summary_mutex);
 
         async move {
