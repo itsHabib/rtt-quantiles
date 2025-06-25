@@ -3,7 +3,7 @@ use anyhow::Result;
 use aws_sdk_dynamodb::Client;
 use aws_sdk_dynamodb::types::AttributeValue;
 use chrono;
-use chrono::{Duration, DurationRound, DateTime, Utc};
+use chrono::{DateTime, Duration, DurationRound, Utc};
 use serde_json;
 use std::collections::HashMap;
 use tdigest::TDigest;
@@ -57,8 +57,12 @@ impl Service {
             }
         }
     }
-    
-    pub async fn query_digests(&self, from: DateTime<Utc>, to: DateTime<Utc>) -> Result<Vec<TDigest>> {
+
+    pub async fn query_digests(
+        &self,
+        from: DateTime<Utc>,
+        to: DateTime<Utc>,
+    ) -> Result<Vec<TDigest>> {
         // This function would implement querying logic to retrieve TDigestRecords
         // from DynamoDB based on the application and node.
         // For now, we will return an empty vector as a placeholder.

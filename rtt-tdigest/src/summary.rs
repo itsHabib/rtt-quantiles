@@ -22,11 +22,10 @@ impl Summary {
         self.digest = self.digest.merge_unsorted(vec![rtt_ms]);
         self.count += 1;
     }
-    
+
     pub fn digest(&self) -> TDigest {
         self.digest.clone()
     }
-    
 
     /// Returns the p99 quantile of the given rtt samples
     pub fn p99(&self) -> f64 {
