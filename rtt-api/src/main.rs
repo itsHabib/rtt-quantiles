@@ -30,20 +30,6 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
-
-#[derive(Deserialize)]
-struct QuantilesRequest {
-    from: DateTime<Utc>,
-    to: DateTime<Utc>,
-}
-
-#[derive(Serialize)]
-struct QuantilesResponse {
-    agg_level: String,
-    sample_count: usize,
-    quantiles: HashMap<String, f64>,
-}
-
 async fn get_quantiles(
     Query(q): Query<QuantilesRequest>,
     State(svc): State<rtt_tdigest::Service>,
@@ -89,3 +75,17 @@ async fn tdigest_svc() -> rtt_tdigest::Service {
 
     rtt_tdigest::Service::new(client, "sample-app".to_string(), "local".to_string())
 }
+
+#[derive(Deserialize)]
+struct QuantilesRequest {
+    from: DateTime<Utc>,
+    to: DateTime<Utc>,
+}
+
+#[derive(Serialize)]
+struct QuantilesResponse {
+    agg_level: String,
+    sample_count: usize,
+    quantiles: HashMap<String, f64>,
+}
+
