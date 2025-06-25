@@ -1,0 +1,22 @@
+[package]
+name = "rtt-api"
+version = "0.1.0"
+edition = "2024"
+license.workspace = true
+
+[dependencies]
+axum = { workspace = true }
+anyhow = { workspace = true }
+aws-sdk-dynamodb = { workspace = true }
+aws-config = { workspace = true }
+chrono = { workspace = true }
+rtt-tdigest = { path = "../rtt-tdigest" }
+tdigest = { workspace = true, features = ["use_serde"] }
+tokio = { workspace = true, features = [
+    "macros",
+    "rt",
+    "rt-multi-thread",
+    "net",
+    "signal",
+] }
+serde = { version = "1.0.219", features = ["derive"] }

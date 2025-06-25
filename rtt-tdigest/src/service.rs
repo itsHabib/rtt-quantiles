@@ -3,13 +3,14 @@ use anyhow::Result;
 use aws_sdk_dynamodb::Client;
 use aws_sdk_dynamodb::types::AttributeValue;
 use chrono;
-use chrono::{Duration, DurationRound};
+use chrono::{Duration, DurationRound, DateTime, Utc};
 use serde_json;
 use std::collections::HashMap;
 use tdigest::TDigest;
 
 const TABLE_NAME: &str = "rtt-tdigests";
 
+#[derive(Clone)]
 pub struct Service {
     client: Client,
     app: String,
@@ -55,6 +56,13 @@ impl Service {
                 Err(anyhow::anyhow!("DynamoDB storage failed: {}", e))
             }
         }
+    }
+    
+    pub async fn query_digests(&self, from: DateTime<Utc>, to: DateTime<Utc>) -> Result<Vec<TDigest>> {
+        // This function would implement querying logic to retrieve TDigestRecords
+        // from DynamoDB based on the application and node.
+        // For now, we will return an empty vector as a placeholder.
+        Ok(vec![])
     }
 
     fn record_key(&self, agg_level: String) -> String {
