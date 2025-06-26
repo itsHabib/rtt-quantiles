@@ -6,7 +6,6 @@ members = [
     "rtt-quantiles-ebpf",
     "rtt-tdigest",
 ]
-default-members = ["rtt-quantiles"]
 
 [workspace.package]
 license = "MIT OR Apache-2.0"
