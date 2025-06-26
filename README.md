@@ -1,5 +1,6 @@
 # RTT Quantile Project
 
+*Note: used for learning purposes, not production use*
 This project consists of two main applications:
 
 1. **rtt-quantiles**: An eBPF-based collector that hooks into the Linux kernel's `tcp_rcv_established` function to capture TCP RTT data and stores t-digests in DynamoDB.
@@ -89,4 +90,3 @@ CC=${ARCH}-linux-musl-gcc cargo build --package rtt-quantiles --release \
   --config=target.${ARCH}-unknown-linux-musl.linker=\"${ARCH}-linux-musl-gcc\"
 ```
 
-*Note: used for learning purposes, not production use*
