@@ -34,7 +34,9 @@ async fn get_quantiles(
     Query(q): Query<QuantilesRequest>,
     State(svc): State<rtt_tdigest::Service>,
 ) -> Result<Json<QuantilesResponse>, StatusCode> {
-    let tdigests = match svc.query_digests(q.from, q.to).await {
+    println!("[GET] /quantiles from: {}, to: {}", q.from, q.to);
+
+    let tdigests = match svc.query_digests("1m", q.from, q.to).await {
         Ok(d) => d,
         Err(e) => {
             eprintln!("Error querying digests: {}", e);
@@ -52,11 +54,26 @@ async fn get_quantiles(
         _ => {
             let merged = TDigest::merge_digests(tdigests);
             let quantiles = HashMap::from([
-                ("p99".to_string(), merged.estimate_quantile(0.99)),
-                ("p95".to_string(), merged.estimate_quantile(0.95)),
-                ("p90".to_string(), merged.estimate_quantile(0.90)),
-                ("p75".to_string(), merged.estimate_quantile(0.75)),
-                ("p50".to_string(), merged.estimate_quantile(0.50)),
+                (
+                    "p99".to_string(),
+                    format!("{:.3}", merged.estimate_quantile(0.99)),
+                ),
+                (
+                    "p95".to_string(),
+                    format!("{:.3}", merged.estimate_quantile(0.95)),
+                ),
+                (
+                    "p90".to_string(),
+                    format!("{:.3}", merged.estimate_quantile(0.90)),
+                ),
+                (
+                    "p75".to_string(),
+                    format!("{:.3}", merged.estimate_quantile(0.75)),
+                ),
+                (
+                    "p50".to_string(),
+                    format!("{:.3}", merged.estimate_quantile(0.50)),
+                ),
             ]);
 
             Ok(Json(QuantilesResponse {
@@ -86,6 +103,5 @@ struct QuantilesRequest {
 struct QuantilesResponse {
     agg_level: String,
     sample_count: usize,
-    quantiles: HashMap<String, f64>,
+    quantiles: HashMap<String, String>,
 }
-
