@@ -70,11 +70,11 @@ Response format:
   "agg_level": "1m",
   "sample_count": 2715326,
   "quantiles": {
-    "p50": "4.013",  // 50% of RTTs are below 4.013ms (median)
-    "p75": "10.638", // 75% of RTTs are below 10.638ms
-    "p90": "16.873", // 90% of RTTs are below 16.873ms
-    "p95": "18.786", // 95% of RTTs are below 18.786ms
-    "p99": "21.500"  // 99% of RTTs are below 21.500ms
+    "p50": "4.013",
+    "p75": "10.638",
+    "p90": "16.873",
+    "p95": "18.786",
+    "p99": "21.500"
   }
 }
 ```
