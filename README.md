@@ -12,7 +12,7 @@ This application uses eBPF to hook into the Linux kernel's TCP stack and collect
 
 ### Technical Details
 
-- Uses eBPF's `fentry` probe mechanism (more efficient than kprobes)
+- Uses eBPF's `fentry` probe mechanism
 - Hooks into `tcp_rcv_established` function in the kernel's TCP implementation
 - Extracts `srtt_us` (smoothed round-trip time in microseconds) from the TCP socket structure
 - Passes data to userspace via a ring buffer
