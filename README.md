@@ -88,3 +88,5 @@ CC=${ARCH}-linux-musl-gcc cargo build --package rtt-quantiles --release \
   --target=${ARCH}-unknown-linux-musl \
   --config=target.${ARCH}-unknown-linux-musl.linker=\"${ARCH}-linux-musl-gcc\"
 ```
+
+*Note: used for learning purposes, not production use*
